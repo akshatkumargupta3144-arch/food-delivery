@@ -1,45 +1,65 @@
 import { create } from 'zustand'
-import axios from 'axios'
 
-const API_URL = 'http://localhost:5000/api'
-
-const orderStore = create((set) => ({
+const orderStore = create((set, get) => ({
   orders: [],
   currentOrder: null,
   isLoading: false,
   error: null,
 
   createOrder: async (orderData) => {
-    set({ isLoading: true })
+    set({ isLoading: true, error: null })
     try {
-      const config = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      const response = await axios.post(`${API_URL}/orders`, orderData, config)
-      set({ currentOrder: response.data, isLoading: false })
-      return response.data
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(orderData),
+      })
+
+      if (!response.ok) throw new Error('Failed to create order')
+      const data = await response.json()
+      set({ isLoading: false, currentOrder: data.order })
+      return data.order
     } catch (err) {
-      set({ error: err.response?.data?.message || 'Order creation failed', isLoading: false })
+      set({ error: err.message, isLoading: false })
       throw err
     }
   },
 
   fetchOrders: async () => {
-    set({ isLoading: true })
+    set({ isLoading: true, error: null })
     try {
-      const config = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      const response = await axios.get(`${API_URL}/orders`, config)
-      set({ orders: response.data, isLoading: false })
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/user/orders`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) throw new Error('Failed to fetch orders')
+      const data = await response.json()
+      set({ orders: data, isLoading: false })
     } catch (err) {
       set({ error: err.message, isLoading: false })
     }
   },
 
   fetchOrderById: async (orderId) => {
-    set({ isLoading: true })
+    set({ isLoading: true, error: null })
     try {
-      const config = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      const response = await axios.get(`${API_URL}/orders/${orderId}`, config)
-      set({ currentOrder: response.data, isLoading: false })
-      return response.data
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/${orderId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) throw new Error('Failed to fetch order')
+      const data = await response.json()
+      set({ currentOrder: data, isLoading: false })
     } catch (err) {
       set({ error: err.message, isLoading: false })
     }
@@ -47,11 +67,38 @@ const orderStore = create((set) => ({
 
   trackOrder: async (orderId) => {
     try {
-      const config = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      const response = await axios.get(`${API_URL}/orders/${orderId}/track`, config)
-      return response.data
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/${orderId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        set({ currentOrder: data })
+      }
     } catch (err) {
-      set({ error: err.message })
+      console.error('Error tracking order:', err)
+    }
+  },
+
+  cancelOrder: async (orderId) => {
+    set({ isLoading: true, error: null })
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders/${orderId}/cancel`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) throw new Error('Failed to cancel order')
+      const data = await response.json()
+      set({ currentOrder: data.order, isLoading: false })
+    } catch (err) {
+      set({ error: err.message, isLoading: false })
     }
   },
 }))

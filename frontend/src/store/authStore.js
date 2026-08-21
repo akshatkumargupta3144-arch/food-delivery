@@ -1,24 +1,28 @@
-import { create } from 'zustand'
-import axios from 'axios'
-
-const API_URL = 'http://localhost:5000/api'
-
-const authStore = create((set) => ({
+create('authStore', (set, get) => ({
   user: null,
-  token: localStorage.getItem('token') || null,
   isLoading: false,
   error: null,
 
   login: async (email, password) => {
     set({ isLoading: true, error: null })
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, { email, password })
-      const { token, user } = response.data
-      localStorage.setItem('token', token)
-      set({ user, token, isLoading: false })
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Login failed')
+      }
+
+      const data = await response.json()
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('user', JSON.stringify(data.user))
+      set({ user: data.user, isLoading: false })
       return true
     } catch (err) {
-      set({ error: err.response?.data?.message || 'Login failed', isLoading: false })
+      set({ error: err.message, isLoading: false })
       return false
     }
   },
@@ -26,34 +30,65 @@ const authStore = create((set) => ({
   register: async (name, email, password) => {
     set({ isLoading: true, error: null })
     try {
-      const response = await axios.post(`${API_URL}/auth/register`, { name, email, password })
-      const { token, user } = response.data
-      localStorage.setItem('token', token)
-      set({ user, token, isLoading: false })
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Registration failed')
+      }
+
+      const data = await response.json()
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('user', JSON.stringify(data.user))
+      set({ user: data.user, isLoading: false })
       return true
     } catch (err) {
-      set({ error: err.response?.data?.message || 'Registration failed', isLoading: false })
+      set({ error: err.message, isLoading: false })
       return false
     }
   },
 
   logout: () => {
     localStorage.removeItem('token')
-    set({ user: null, token: null })
+    localStorage.removeItem('user')
+    set({ user: null })
   },
 
   updateProfile: async (userData) => {
-    set({ isLoading: true })
+    set({ isLoading: true, error: null })
     try {
-      const config = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      const response = await axios.put(`${API_URL}/auth/profile`, userData, config)
-      set({ user: response.data.user, isLoading: false })
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(userData),
+      })
+
+      if (!response.ok) {
+        throw new Error('Update failed')
+      }
+
+      const data = await response.json()
+      localStorage.setItem('user', JSON.stringify(data.user))
+      set({ user: data.user, isLoading: false })
       return true
     } catch (err) {
-      set({ error: err.response?.data?.message || 'Update failed', isLoading: false })
+      set({ error: err.message, isLoading: false })
       return false
     }
   },
-}))
 
-export default authStore
+  initializeAuth: () => {
+    const token = localStorage.getItem('token')
+    const user = localStorage.getItem('user')
+    if (token && user) {
+      set({ user: JSON.parse(user) })
+    }
+  },
+}))

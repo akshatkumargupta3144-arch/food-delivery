@@ -1,30 +1,39 @@
 import { create } from 'zustand'
-import axios from 'axios'
 
-const API_URL = 'http://localhost:5000/api'
-
-const restaurantStore = create((set) => ({
+const restaurantStore = create((set, get) => ({
   restaurants: [],
-  selectedRestaurant: null,
+  currentRestaurant: null,
   isLoading: false,
   error: null,
 
   fetchRestaurants: async (filters = {}) => {
-    set({ isLoading: true })
+    set({ isLoading: true, error: null })
     try {
-      const params = new URLSearchParams(filters).toString()
-      const response = await axios.get(`${API_URL}/restaurants?${params}`)
-      set({ restaurants: response.data, isLoading: false })
+      const queryParams = new URLSearchParams()
+      if (filters.cuisine) queryParams.append('cuisine', filters.cuisine)
+      if (filters.minRating) queryParams.append('minRating', filters.minRating)
+      if (filters.sortBy) queryParams.append('sortBy', filters.sortBy)
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/restaurants?${queryParams.toString()}`
+      )
+
+      if (!response.ok) throw new Error('Failed to fetch restaurants')
+      const data = await response.json()
+      set({ restaurants: data, isLoading: false })
     } catch (err) {
       set({ error: err.message, isLoading: false })
     }
   },
 
   fetchRestaurantById: async (id) => {
-    set({ isLoading: true })
+    set({ isLoading: true, error: null })
     try {
-      const response = await axios.get(`${API_URL}/restaurants/${id}`)
-      set({ selectedRestaurant: response.data, isLoading: false })
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/restaurants/${id}`)
+
+      if (!response.ok) throw new Error('Failed to fetch restaurant')
+      const data = await response.json()
+      set({ currentRestaurant: data, isLoading: false })
     } catch (err) {
       set({ error: err.message, isLoading: false })
     }
@@ -33,8 +42,11 @@ const restaurantStore = create((set) => ({
   searchRestaurants: async (query) => {
     set({ isLoading: true })
     try {
-      const response = await axios.get(`${API_URL}/restaurants/search?q=${query}`)
-      set({ restaurants: response.data, isLoading: false })
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/restaurants?search=${query}`
+      )
+      const data = await response.json()
+      set({ restaurants: data, isLoading: false })
     } catch (err) {
       set({ error: err.message, isLoading: false })
     }
