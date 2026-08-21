@@ -1,0 +1,11 @@
+footer {
+  background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+}
+
+footer a {
+  transition: all 0.3s ease;
+}
+
+footer a:hover {
+  color: #FF6B35;
+}
